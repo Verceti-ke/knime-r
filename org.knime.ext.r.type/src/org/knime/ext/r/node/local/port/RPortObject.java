@@ -255,7 +255,7 @@ public class RPortObject implements PortObject {
 		JEditorPane jep = new JEditorPane();
 		jep.setEditable(false);
 		panel.setName("R Port View");
-		jep.setText("R model file:\n" + getFilePath());
+		jep.setText(toString());
 		panel.add(new JScrollPane(jep));
 		return new JComponent[] { panel };
 	}
@@ -318,4 +318,22 @@ public class RPortObject implements PortObject {
 	public int hashCode() {
 		return m_fileR.hashCode();
 	}
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("R model file:\n") //
+            .append(getFilePath()); //
+        if (!m_libraries.isEmpty()) {
+            sb.append("\n\n") //
+                .append("Libraries:\n") //
+                .append(String.join(", ", m_libraries)); //
+        }
+        if (m_rHomePath != null) {
+            sb.append("\n\n") //
+                .append("R home path:\n") //
+                .append(m_rHomePath); //
+        }
+        return sb.toString();
+    }
 }
