@@ -52,6 +52,8 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -67,11 +69,11 @@ import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.port.PortObject;
-import org.knime.core.node.port.PortTypeRegistry;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortObjectZipInputStream;
 import org.knime.core.node.port.PortObjectZipOutputStream;
 import org.knime.core.node.port.PortType;
+import org.knime.core.node.port.PortTypeRegistry;
 import org.knime.core.util.FileUtil;
 
 /**
@@ -180,16 +182,28 @@ public class RPortObject implements PortObject {
 	 * @return a {@link RPortObject}
 	 */
 	public static final class Serializer extends PortObjectSerializer<RPortObject> {
-		/** {@inheritDoc} */
+        private static final Charset CHARSET = StandardCharsets.UTF_8;
+
+        /** {@inheritDoc} */
 		@Override
 		public void savePortObject(final RPortObject portObject, final PortObjectZipOutputStream out,
 				final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
+            // R workspace file
 			out.putNextEntry(new ZipEntry("knime.R"));
 			FileInputStream fis = new FileInputStream(portObject.m_fileR);
 			FileUtil.copy(fis, out);
 			fis.close();
+
+            // Library list
 			out.putNextEntry(new ZipEntry("library.list"));
-			IOUtils.writeLines(portObject.m_libraries, "\n", out, "UTF-8");
+			IOUtils.writeLines(portObject.m_libraries, "\n", out, CHARSET);
+			
+			// R home path
+            if (portObject.m_rHomePath != null) {
+                out.putNextEntry(new ZipEntry("rHomePath"));
+                IOUtils.write(portObject.m_rHomePath, out, CHARSET);
+            }
+
 			out.closeEntry();
 			out.close();
 		}
@@ -198,25 +212,37 @@ public class RPortObject implements PortObject {
 		@Override
 		public RPortObject loadPortObject(final PortObjectZipInputStream in, final PortObjectSpec spec,
 				final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
+            // R workspace file
 			ZipEntry nextEntry = in.getNextEntry();
 			if (nextEntry == null || !"knime.R".equals(nextEntry.getName())) {
 				throw new IOException(
 						"Expected zip entry \"knime.R\" but got " + nextEntry == null ? "<null>" : nextEntry.getName());
 			}
-			File fileR = FileUtil.createTempFile("~knime", ".R");
-			FileOutputStream fos = new FileOutputStream(fileR);
-			FileUtil.copy(in, fos);
+			final File fileR = FileUtil.createTempFile("~knime", ".R");
+            try (final FileOutputStream fos = new FileOutputStream(fileR)) {
+                FileUtil.copy(in, fos);
+            }
+
+            // Library list
 			nextEntry = in.getNextEntry();
-			List<String> libraries;
+			final List<String> libraries;
 			if (nextEntry == null) {
 				// old style port object (2.7-)
 				libraries = Collections.emptyList();
 			} else {
-				libraries = IOUtils.readLines(in, "UTF-8");
+				libraries = IOUtils.readLines(in, CHARSET);
 			}
+
+            // R home path
+            nextEntry = in.getNextEntry();
+            String rHomePath = null;
+            if (nextEntry != null) {
+                // new port object (>= 4.2)
+                rHomePath = IOUtils.toString(in, CHARSET);
+            }
 			in.close();
-			fos.close();
-			return new RPortObject(fileR, libraries);
+
+			return new RPortObject(fileR, libraries, rHomePath);
 		}
 	}
 
