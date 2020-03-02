@@ -166,6 +166,11 @@ public class RSnippetNodeModel extends ExtToolOutputNodeModel {
         }
     }
 
+    /** Get the currently configured R home path */
+    private String getActiveRHomePath() {
+        return getRPreferences().getRHome();
+    }
+
     /**
      * Execute the R snippet stored in the node settings
      *
@@ -223,7 +228,7 @@ public class RSnippetNodeModel extends ExtToolOutputNodeModel {
                     outPorts.add(importDataFromR(controller, m_snippet.getSettings().getOutNonNumbersAsMissing(),
                         exec.createSubExecutionContext(0.3)));
                 } else if (portType.equals(RPortObject.TYPE)) {
-                    outPorts.add(new RPortObject(tempWorkspaceFile, m_librariesInR));
+                    outPorts.add(new RPortObject(tempWorkspaceFile, m_librariesInR, getActiveRHomePath()));
                 }
             }
             exec.setMessage("Importing flow variables from R");
