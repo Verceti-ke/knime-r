@@ -92,6 +92,8 @@ public class RPortObject implements PortObject {
 	private final File m_fileR;
 	private final List<String> m_libraries;
 
+    private final String m_rHomePath;
+
 	/**
 	 * Creates an instance of <code>RPortObject</code> with given file.
 	 *
@@ -109,11 +111,24 @@ public class RPortObject implements PortObject {
 	 *            The list of libraries, not null.
 	 * @since 2.8
 	 */
-	public RPortObject(final File fileR, final List<String> libraries) {
-		m_fileR = fileR;
-		m_libraries = libraries.isEmpty() ? Collections.<String>emptyList()
-				: Collections.unmodifiableList(new ArrayList<String>(libraries));
-	}
+    public RPortObject(final File fileR, final List<String> libraries) {
+        this(fileR, libraries, null);
+    }
+
+    /**
+     * Creates an instance of <code>RPortObject</code> with given file.
+     *
+     * @param fileR     The workspace file.
+     * @param libraries The list of libraries, not null.
+     * @param rHomePath The Path to the R home that was used to create this R model.
+     * @since 4.2
+     */
+    public RPortObject(final File fileR, final List<String> libraries, final String rHomePath) {
+        m_fileR = fileR;
+        m_libraries = libraries.isEmpty() ? Collections.<String> emptyList()
+            : Collections.unmodifiableList(new ArrayList<String>(libraries));
+        m_rHomePath = rHomePath;
+    }
 
 	/**
 	 * {@inheritDoc}
@@ -150,6 +165,14 @@ public class RPortObject implements PortObject {
 	public List<String> getLibraries() {
 		return m_libraries;
 	}
+
+    /**
+     * @return the Path to the R home that was used to create this R model. Can be <code>null</code> if unknown.
+     * @since 4.2
+     */
+    public String getRHomePath() {
+        return m_rHomePath;
+    }
 
 	/**
 	 * Serializer used to save this port object.
