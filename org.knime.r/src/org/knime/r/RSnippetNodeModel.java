@@ -213,8 +213,19 @@ public class RSnippetNodeModel extends ExtToolOutputNodeModel {
             exec.setProgress(0.0);
 
             final RSnippetSettings s = m_snippet.getSettings();
-            controller.importDataFromPorts(inData, exec.createSubExecutionContext(importTime), s.getSendBatchSize(),
-                s.getKnimeInType(), s.getSendRowNames());
+            final String rHomeDiff = checkPortObjectsRHome(inData);
+            try {
+                controller.importDataFromPorts(inData, exec.createSubExecutionContext(importTime), s.getSendBatchSize(),
+                    s.getKnimeInType(), s.getSendRowNames());
+            } catch (final RException e) {
+                if (rHomeDiff != null) {
+                    // The R home does differ. This could be the problem
+                    throw new RException(e.getMessage() + "\nThis could be due to a changed R home path: " + rHomeDiff, e);
+                } else {
+                    // The R home does not differ or we do not know
+                    throw e;
+                }
+            }
             controller.exportFlowVariables(flowVarRepo.getInFlowVariables(), "knime.flow.in", exec);
 
             tempWorkspaceFile = FileUtil.createTempFile("R-workspace", ".RData");
@@ -242,6 +253,24 @@ public class RSnippetNodeModel extends ExtToolOutputNodeModel {
             }
             throw e;
         }
+    }
+
+    /** Logs a warning if a port object R home differs from the active R home and returns how they differ */
+    private String checkPortObjectsRHome(final PortObject[] portObjects) {
+        final StringBuilder sb = new StringBuilder();
+        for (final PortObject po : portObjects) {
+            if (po instanceof RPortObject) {
+                final String poRHomePath = ((RPortObject)po).getRHomePath();
+                final String activeRHomePath = getActiveRHomePath();
+                if (poRHomePath != null && !poRHomePath.equals(activeRHomePath)) {
+                    final String message ="The active R home path \"" + activeRHomePath
+                        + "\" differs from the R home path used to save the R workspace \"" + poRHomePath + "\".";
+                    getLogger().warn(message);
+                    sb.append(message).append("\n");
+                }
+            }
+        }
+        return sb.length() == 0 ? null : sb.toString();
     }
 
     /**
